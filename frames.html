@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http://mylisters.com; connect-src *; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+        <title>MyListers Screen Display Ver 2.02 </title>
+
+        <style>
+			body {
+				cursor: none;
+				padding:0px;
+				margin:0px;
+				overflow:hidden;
+				background-color:#000000;
+			}
+        </style>
+    </head>
+    <body>
+
+        <!-- If you are using this serverless the playlists passed in the querystring for the  E.G. "?PLAYLISTFILE=media/2playlist.json" will not load due to CORS protection resulting in all frames showing the same playlist from config.js -->
+        <!-- If you know how HTML I guess you could make multiple copies of index.html and config.js  -->
+        <iframe style="position:absolute; left:0; top:0; background-color: #F00; width:50vw; height:50vh; border:0;" src="index.html" title="fleft"></iframe>
+        <iframe style="position:absolute; left:50vw; top:0; background-color: #0F0; width:50vw; height:50vh; border:0;" src="index.html?PLAYLISTFILE=media/2playlist.json" title="fleft"></iframe>
+        <iframe style="position:absolute; left:0; top:50vh; background-color: #00F; width:50vw; height:50vh; border:0;" src="index.html?PLAYLISTFILE=media/3playlist.json" title="fleft"></iframe>
+        <iframe style="position:absolute; left:50vw; top:50vh; background-color: #FFF; width:50vw; height:50vh; border:0;" src="index.html?PLAYLISTFILE=media/4playlist.json" title="fleft"></iframe>
+
+
+    </body>
+</html>

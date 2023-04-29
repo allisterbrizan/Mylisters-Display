@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http://mylisters.com; connect-src *; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+        <title>MyListers Screen Display Ver 2.02</title>
+        <script type="text/javascript">
+            
+            var INFO = "Disable this overlay by setting DEBUGMODE=false in the playlist or config.js | Version 2022.11.22 (CARMEN)";
+            var DEVICEID = 'JustAnotherDevice'; //Only used for logging. 
+            var DEBUGMODE = false; //Debug Mode. It is often useful to overwrite this setting in playlist.
+            var WIDTH = 0; //Set to zero to autodetect
+            var HEIGHT= 0; //Set to zero to autodetect
+            var TOP = 0; //offset from top edge
+            var LEFT= 0; //offset from left edge
+
+            var MAXWAIT = 20;
+            var IMAGEWAIT = 100;
+            var PLAYLISTFILE ='media/playlist.json'; //Playlist filenme
+            var SHOWALERTS = false; //Announce Stuff on screen. Just Playlist Updates for now
+            var ALERTWAIT = 50; //How long to Announce Stuff on screen.
+            var VOLUME = 1; //The Default Volume from 0 to 1.
+            var CACHEMEDIA = true; //Use the media cacheing 
+            var TVSUPPORT = false;
+            var TVWAIT = 100; //Default wait for TV in control loop ticks. 10 Ticks = 1 Second.
+            var TVOPTIONS = {  video: { width: {ideal:1280}, height: {ideal:720} },  audio:true };
+            var LOGALL = false; //Automatically Log all 
+            var LOGURL = "log.php"; //The link to hit after each play
+            var TIMEON  = ""; //The time the screen starts showing ads each day
+            var TIMEOFF = ""; //The time the screen stops showing ads each day
+
+
+			var options = [	{'stretch':false, 'wait':10, 'fileType':'video', 'fileName':'../video.mp4'} ];
+            
+        </script>
+        <script type="text/javascript" src="config.js?disablecache=<?=time()?>"></script>
+        <script type="text/javascript" src="jquery.js"></script>
+
+
+        <style>
+          video#backgroundvid { 
+             position: fixed; right: 0; bottom: 0;
+             min-width: 100%; min-height: 100%;
+             width: auto; height: auto; z-index: -100;
+             background-size: cover; 
+          }
+          #videocontainer{
+				width:100px; 
+				height:100px;
+			} 			
+			body {
+				cursor: none;
+				padding:0px;
+				margin:0px;
+				overflow:hidden;
+				background-color:#000000;
+			}
+        </style>
+    </head>
+    <body>
+        <div id="videocontainer" style="position:absolute; display:none;"><video id="sigVideo" width="100%" height="100%"  ondurationchange="scaleToFill(this);statusOfScreen=PLAY;loadDuringAdvanceProtection = 'video'; " oncanplay="" onloadedmetadata="" onended="statusOfScreen=FINISHED;"> <source src="" type="video/mp4" /> </video></div>
+        <div id="imagecontainer" style="position:absolute; display:none;">&nbsp;</div>
+        <div id="tvcontainer" style="position:absolute; display:none;"><video  autoplay="true"  id="sigTV" style="	width: 100vw; height: 100vh;"> </video></div>
+        
+        <div style="top:50px; left:50px; text-decoration:none; padding:5px; position:absolute;">
+            <div id="refreshing" style="display:none; color:#f55; font-weight:bold; text-shadow:2px 2px #000;">Config.js CHANGED. ABOUT TO REFRESH!</div>
+            <div id="info" style="display:block; color:#22ff22; text-shadow:2px 2px #000;">Version Not Known</div>
+            <div id="clkstatus" style="display:block; color:#22ff22; text-shadow:2px 2px #000;">Time: Default</div>
+            <div id="plsstatus" style="display:block; color:#22ff22; text-shadow:2px 2px #000;">Playlist Status: Default</div>
+            <div id="scrstatus" style="display:block; color:#22ff22; text-shadow:2px 2px #000;">Welcome</div>
+            <div id="ajaxstatus" style="display:block; color:#22ff22; text-shadow:2px 2px #000;">Playlist is internal</div>
+            <div id="log" style="display:block; color:#22ffff; text-shadow:2px 2px #000;"></div>
+        </div>
+        <img id="imageloadcheck" style="" height="1" width="1" style="display:none">
+     
+         <script type="text/javascript">
+
+//HREF Overrides of config file
+let url = new URL(window.location.href);
+if (url.searchParams.has('PLAYLISTFILE') ) PLAYLISTFILE=url.searchParams.get('PLAYLISTFILE');
+if (url.searchParams.has('TIMEON') ) TIMEON=url.searchParams.get('TIMEON');
+if (url.searchParams.has('TIMEOFF') ) TIMEOFF=url.searchParams.get('TIMEOFF');
+if (url.searchParams.has('WIDTH') ) WIDTH=url.searchParams.get('WIDTH');
+if (url.searchParams.has('HEIGHT') ) HEIGHT=url.searchParams.get('HEIGHT');
+if (url.searchParams.has('TOP') ) TOP=url.searchParams.get('TOP');
+if (url.searchParams.has('LEFT') ) LEFT=url.searchParams.get('LEFT');
+if (url.searchParams.has('VOLUME') ) VOLUME=url.searchParams.get('VOLUME');
+if (url.searchParams.has('DEBUGMODE') ) DEBUGMODE=url.searchParams.get('DEBUGMODE');
+if (url.searchParams.has('TVSUPPORT') ) TVSUPPORT=url.searchParams.get('TVSUPPORT');
+if (url.searchParams.has('TVOPTIONS') ) TVOPTIONS=url.searchParams.get('TVOPTIONS');  //ToDo Hadle this properly as this is JSON
+if (url.searchParams.has('IMAGEWAIT') ) IMAGEWAIT=url.searchParams.get('IMAGEWAIT');
+if (url.searchParams.has('TVWAIT') ) TVWAIT=url.searchParams.get('TVWAIT');
+if (url.searchParams.has('SHOWALERTS') ) SHOWALERTS=url.searchParams.get('SHOWALERTS');
+if (url.searchParams.has('ALERTWAIT') ) ALERTWAIT=url.searchParams.get('ALERTWAIT');
+if (url.searchParams.has('MAXWAIT') ) MAXWAIT=url.searchParams.get('MAXWAIT');
+if (url.searchParams.has('CACHEMEDIA') ) CACHEMEDIA=url.searchParams.get('CACHEMEDIA');
+if (url.searchParams.has('LOGALL') ) LOGALL=url.searchParams.get('LOGALL');
+if (url.searchParams.has('INFO') ) INFO=url.searchParams.get('INFO');
+
+
+         
+var counter = -1;
+var watchdog = MAXWAIT;
+var playlistposition = 0;
+var errorCode = 0;
+var refreshing = false;
+         
+         
+         
+const INIT = 0;
+const LOADING = 1;
+const PLAY = 2;
+const PLAYING = 3;
+const FINISHED = 6;
+const UNLOAD = 4;
+const EMPTY = 5;
+const FORCEUNLOAD = 7;
+var onScreen = {'stretch':false, 'wait':10, 'fileType':'video', 'fileName':'video.mp4'};
+var statusOfScreen = EMPTY;
+var screenWidthToUse = window.innerWidth;
+var screenHeightToUse = window.innerHeight;	
+var portrait = false;
+var videoElement;
+var videoTime = 0;
+var interrupt = false;
+var playlistBuffer = JSON.stringify(options); //Store the playlist as a string here to detect updates.
+var alertCounter = ALERTWAIT + 1;  //Set to 0 to temporarily show debug info
+var loadDuringAdvanceProtection = ''; //Flag to double check if callbacks occur during advancePlaylist
+var subLoopPositions = [] //Sparse array to remember where you are in looping playlist items
+var errorFlag=false;  //Used for playback logging.
+var errorDescription = '';//Used for playback logging.
+
+
+
+//TV Support check and setup (TV input will always be processing)
+var tv = document.querySelector("#sigTV");
+if (TVSUPPORT && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia( TVOPTIONS ).then(function (stream) {
+      tv.srcObject = stream;
+      //Disable all tracks for now
+		for (var i = 0; i < stream.getTracks().length; i++) {
+		    stream.getTracks()[i].enabled=false;
+		}
+    })
+    .catch(function (error) {
+      //alert("TV load failed!");
+      TVSUPPORT = false;
+    });
+}
+
+
+//Image load checker function extra check
+$.fn.imageLoad = function(fn){
+    this.on('load', fn);
+    this.each( function() {
+        if ( this.complete && this.naturalWidth !== 0 ) {
+            $(this).trigger('load');
+        }
+    });
+}
+
+    
+$(document).ready(function() {
+    if (WIDTH==0) {screenWidthToUse = window.innerWidth;} else {screenWidthToUse = WIDTH;}
+    if (HEIGHT==0) {screenHeightToUse = window.innerHeight;} else {screenHeightToUse = HEIGHT;}
+    
+	//Set Aspect Ratio Flag. Basically Unnecessary but good for readability i suppose
+	if (window.innerWidth > window.innerHeight) {
+		//alert("Landscape. You are on a tablet I guess.");
+		portrait = false;
+	} else {
+		//alert("Portrait. You are on a phone.");
+		portrait = true;
+	}
+    
+    //Set up image loading success detection
+    $('#imageloadcheck')
+        .imageLoad(function(){
+            //Image loaded successfully. Set the requested wait time in the control loop. It should be currently counting down the loading tomout: MAXWAIT
+            loadDuringAdvanceProtection = 'image';
+            //default to 10 seconds (100 ticks)
+            watchdog = IMAGEWAIT;
+            loadDuringAdvanceProtection = 'image'; 
+            if (typeof onScreen['waitMinutes'] !=='undefined'){
+				    watchdog = onScreen['waitMinutes']*600;
+			}
+            if (typeof onScreen['longWait'] !=='undefined'){
+				    watchdog = onScreen['longWait']*600;
+			  }
+            if (typeof onScreen['wait'] !=='undefined'){
+                watchdog = 10 *  onScreen['wait'];
+            }
+            statusOfScreen = PLAYING;
+        });
+     
+	
+	//Size Screen Containers
+	$('#videocontainer').css('width',screenWidthToUse + 'px');
+	$('#videocontainer').css('height',screenHeightToUse + 'px');
+	$('#imagecontainer').css('width',screenWidthToUse + 'px');
+	$('#imagecontainer').css('height',screenHeightToUse + 'px');
+	$('#tvcontainer').css('width',screenWidthToUse + 'px');
+	$('#tvcontainer').css('height',screenHeightToUse + 'px');
+	$('#sigTV').css('width',screenWidthToUse + 'px');
+	$('#sigTV').css('height',screenHeightToUse + 'px');	
+
+	$('#videocontainer').css('top',TOP + 'px');
+	$('#videocontainer').css('left',LEFT + 'px');
+	$('#imagecontainer').css('top',TOP + 'px');
+	$('#imagecontainer').css('left',LEFT + 'px');
+	$('#tvcontainer').css('top',TOP + 'px');
+	$('#tvcontainer').css('left',LEFT + 'px');
+	
+	//Playlist Should be loaded here
+	refreshPlaylist();
+    
+    //Setup the debug screen
+    $('#info').text(INFO);
+    showDebug (DEBUGMODE);
+	
+	//init Playlist Control Loop
+	displayControlLoopInterval = setInterval(function(){displayControlLoop();},100);
+	playlistInterval = setInterval(function(){refreshPlaylist();},10000);
+	refreshConfiginterval = setInterval(function(){refreshConfig();},10000);
+});
+
+
+function logPlayback() {
+    	 //Perform Logging......
+    	 if (typeof onScreen['log'] !=='undefined') {
+    	 	if (onScreen['log'] ==''){
+    	 		logItem(LOGURL,onScreen);
+    	 	} else {
+    	 		logItem(onScreen['log'],onScreen);
+    	 	}
+    	 } else {
+    	 	if (LOGALL) logItem(LOGURL,onScreen);
+    	 }    
+}
+
+
+function showDebug (myMode){
+	//Debugmode?
+    //alert ('Debug mode:' + myMode);
+	if (myMode) {
+        $('#info').css('display','block');
+        $('#plsstatus').css('display','block');
+        $('#clkstatus').css('display','block');
+        $('#scrstatus').css('display','block');
+		$('#ajaxstatus').css('display','block');
+		$('#log').css('display','block');
+	} else {
+        $('#info').css('display','none');
+        $('#plsstatus').css('display','none');
+        $('#clkstatus').css('display','none');
+        $('#scrstatus').css('display','none');
+		$('#ajaxstatus').css('display','none');
+		$('#log').css('display','none');
+	}
+}
+
+
+function logItem(logURL,logData){
+	//append extra information to data 
+	logData['DeviceID'] = DEVICEID;
+	logData['errorFlag'] = errorFlag;
+	logData['errorDescription'] = errorDescription;
+	//Hit URL to log
+	$.ajax({
+		url: logURL,
+		data: logData,
+		cache: false,
+		type: 'GET',
+		dataType: 'text',
+		success: function(data) {
+			if (DEBUGMODE) {
+				$('#log').append('<br>Logged: ' + JSON.stringify(logData) + data );
+			}
+		},
+		error: function() { 
+			if (DEBUGMODE) {
+				$('#log').append('<br>Log Failed: ' + JSON.stringify(logData) );
+				alertCounter = 0;
+			}
+		}
+	});
+}
+	
+
+function refreshConfig(){
+	//This is to check for config changes to refresh
+	$.ajax({
+		url: 'config.js' +'?time=' +new Date(),
+		cache: false,
+		type: 'GET',
+		dataType: 'text',
+		success: function(data) {            
+			if (data != localStorage.getItem('config.js')) {
+				localStorage.setItem('config.js',data);
+				$('#refreshing').css('display','block');
+				refreshing = true;
+				alertCounter = 0;
+			}
+		},
+		error: function() { 
+			//alert('Not Loaded.');
+		}
+	});
+}
+	
+
+
+function refreshPlaylist(){
+	//This is called to hide temporary debug info on failed playlist
+    //if (DEBUGMODE==false) showDebug(false);
+    
+	$('#ajaxstatus').text('About to reload Playlist');
+	$.ajax({
+		url: PLAYLISTFILE+'?time=' +new Date(),
+		cache: false,
+		type: 'GET',
+		dataType: 'json',
+		success: function(data) {            
+			if (data.length > 0) {
+				if (playlistBuffer != JSON.stringify(data)){
+					//Playlist changed. Load it.
+                    options = data;
+                    playlistBuffer = JSON.stringify(data);
+                    //Just set the alertcounter to zero
+                    alertCounter = 0;
+					$('#ajaxstatus').text('Playlist updated successfully');
+					//Check for interrupt on first item
+					if (data[0]['fileType'] == 'interrupt'){
+						//Stop and Cleanup
+						statusOfScreen = FINISHED;
+						interrupt = true;
+					} else {
+						//Advance to the end of the playlist so that playlist would start from beginning
+						//playlistposition = data.length;
+					}
+				}else{
+					$('#ajaxstatus').text('Playlist unchanged');
+				}
+                //Detect playlist file restored after a loading error
+                if (errorCode != 0) {
+                    //Just set the alertcounter to zero
+                    alertCounter = 0;
+                    errorCode = 0;
+                    $('#ajaxstatus').text('Playlist restored');
+                }
+				
+			}else{
+             //Only force-show the first failure
+             if (errorCode != 1) alertCounter = 0;
+				errorCode = 1;
+				$('#ajaxstatus').text('Playlist data rejected');
+			}
+		},
+		error: function() { 
+			//alert('Not Loaded.');
+          if (errorCode != 2) alertCounter = 0;
+			errorCode = 2;
+			$('#ajaxstatus').text('Playlist load failed');
+		}
+	});
+}
+	
+
+
+function displayControlLoop() {
+	//Just a counter
+	counter = counter + 1;
+
+    //Date and time for debug
+    $('#clkstatus').text('Date and time: ' + new Date() + '  Playlist:' + PLAYLISTFILE );
+    
+    // Show alerts by force  
+    if (SHOWALERTS) {
+        if (alertCounter < ALERTWAIT) {
+            alertCounter = alertCounter + 1;
+            showDebug(true);
+        }
+        if (alertCounter == ALERTWAIT) {
+            alertCounter = alertCounter + 1;
+            showDebug(DEBUGMODE);
+        }
+    }
+ 
+    // config.js has been updated. Show the message.
+    if (refreshing) {
+        if (alertCounter < ALERTWAIT) {
+            alertCounter = alertCounter + 1;
+            showDebug(true);
+        }
+        if (alertCounter == ALERTWAIT) {
+            location.reload();
+        }
+    }
+
+   
+    
+	//Screen Possible states
+	switch(statusOfScreen){
+
+
+      case EMPTY:
+        //Figure out what to load. Next in playlist.
+        statusOfScreen = INIT;
+        onScreen = advancePlaylist();
+      break;
+
+
+      case INIT:
+          //Clear Error Flags
+          errorFlag=false;
+          errorDescription = '';
+          
+          //Set Up media
+		    if (onScreen['fileType']=='config'){
+			    loadDuringAdvanceProtection = 'config';
+			    statusOfScreen = EMPTY;
+              //Set Debug Mode on or off
+              if (typeof onScreen['debug'] !=='undefined'){
+                    DEBUGMODE = onScreen['debug'];
+                    showDebug (DEBUGMODE);
+              }
+              //Set Default Volume
+              if (typeof onScreen['volume'] !=='undefined'){
+                    VOLUME = onScreen['volume'];
+              }
+		    }
+		    
+		    	
+		    if (onScreen['fileType']=='interrupt'){
+			    //Handled by playlist loader. Just go back to EMPTY
+			    statusOfScreen = EMPTY;
+			    //onScreen['fileType']= 'command';
+			    loadDuringAdvanceProtection = 'interrupt';
+		    }
+		    
+		    
+		    if (onScreen['fileType']=='cls'){
+			    //Clear screen
+			    $('#log').html('&nbsp;');
+			    statusOfScreen = EMPTY;
+			    //onScreen['fileType']= 'command';
+			    loadDuringAdvanceProtection = 'cls';
+		    }
+		    
+		    
+		    if (onScreen['fileType']=='video'){
+
+			    //Randoms
+			    if (typeof onScreen['random'] !=='undefined'){
+                 //pick a random file from the list and use that as the filename
+                 if (onScreen['random'].length > 0)  {
+                     onScreen['fileName'] = onScreen['random'][Math.floor(Math.random()*onScreen['random'].length)];
+                 }
+             }
+             //Loops
+             if (typeof onScreen['loop'] !=='undefined'){
+                 //if it's the first time around, remember your spot at 0
+                 if (typeof subLoopPositions[playlistposition] === 'undefined') { subLoopPositions[playlistposition] = 0 }  
+                 //if it's an overflow, set your spot at 0
+                 
+                 if (onScreen['loop'].length > 0)  {
+                 	 if (subLoopPositions[playlistposition] >= onScreen['loop'].length ) { subLoopPositions[playlistposition] = 0 }  
+	                 //load the filename
+	                 onScreen['fileName'] = onScreen['loop'][subLoopPositions[playlistposition]];
+	                 //increment 
+	                 subLoopPositions[playlistposition] = subLoopPositions[playlistposition] + 1;
+                 }
+             }     
+			    //Day of the week ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+			    if (typeof onScreen['week'] !=='undefined'){
+                 //pick a file from the list and use that as the filename
+                 if (onScreen['week'].length ==7)  {
+                     onScreen['fileName'] = onScreen['week'][new Date().getDay()];
+                 }
+             }
+
+			    //Final check before attempting to load the video
+			    if (onScreen['fileName']=='') {
+			    	//Blank Filename. Skip
+			    	statusOfScreen = EMPTY;
+			    } else {
+			    	if (CACHEMEDIA) {
+				        renderVideo('media/' + onScreen['fileName']);
+				    } else {
+				        renderVideo('media/' + onScreen['fileName'] + '?time=' + new Date());
+				    }
+				    watchdog = MAXWAIT;
+				    statusOfScreen = LOADING;
+			    }
+          }		    
+		    
+		    
+		    if (onScreen['fileType']=='image'){
+			    $('#imagecontainer').css('display','block');
+			    $('#imagecontainer').css('width',screenWidthToUse + 'px');
+			    $('#imagecontainer').css('height',screenHeightToUse + 'px');
+			    $('#imagecontainer').css('background-position','center');
+			    $('#imagecontainer').css('background-repeat','no-repeat');
+			    //Default to contain
+			    $('#imagecontainer').css('background-size','contain');
+			    //Either cover or stretch
+			    if (typeof onScreen['stretch'] !=='undefined'){
+				    if (onScreen['stretch']=='cover'){
+					    $('#imagecontainer').css('background-size','cover');
+				    }
+				    if (onScreen['stretch']=='stretch'){
+					    $('#imagecontainer').css('background-size','100% 100%');
+				    }
+			    }
+			    //Randoms
+			    if (typeof onScreen['random'] !=='undefined'){
+                 //pick a random file from the list and use that as the filename
+                 if (onScreen['random'].length > 0)  {
+                     onScreen['fileName'] = onScreen['random'][Math.floor(Math.random()*onScreen['random'].length)];
+                 }
+             }   
+             //Loops
+             if (typeof onScreen['loop'] !=='undefined'){
+                 //if it's the first time around, remember your spot at 0
+                 if (typeof subLoopPositions[playlistposition] === 'undefined') { subLoopPositions[playlistposition] = 0 }  
+                 //if it's an overflow, set your spot at 0
+                 if (onScreen['loop'].length > 0)  {
+	                 if (subLoopPositions[playlistposition] >= onScreen['loop'].length ) { subLoopPositions[playlistposition] = 0 }  
+	                 //load the filename
+	                 onScreen['fileName'] = onScreen['loop'][subLoopPositions[playlistposition]];
+	                 //increment 
+	                 subLoopPositions[playlistposition] = subLoopPositions[playlistposition] + 1;
+                 }
+             }           
+			    //Day of the week ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+			    if (typeof onScreen['week'] !=='undefined'){
+                 //pick a file from the list and use that as the filename
+                 if (onScreen['week'].length ==7)  {
+                     onScreen['fileName'] = onScreen['week'][new Date().getDay()];
+                 }
+             }
+
+
+			    //Final check before attempting to load the image
+			    if (onScreen['fileName']=='') {
+			    	//Blank Filename. Skip
+			    	statusOfScreen = EMPTY;
+			    } else {
+				    //Load the image
+				    if (CACHEMEDIA) {
+				        renderVideo('media/' + onScreen['fileName']);
+				        $('#imageloadcheck').attr("src",'media/' + onScreen['fileName']);
+				        $('#imagecontainer').css('background-image','url("media/' + onScreen['fileName']+'")');
+				    } else {
+				        renderVideo('media/' + onScreen['fileName'] + '?time=' + new Date());
+				        $('#imageloadcheck').attr("src",'media/' + onScreen['fileName']+'?time=' +new Date());
+				        $('#imagecontainer').css('background-image','url("media/' + onScreen['fileName']+'?time=' +new Date()+ '")');
+				    }
+	                watchdog = MAXWAIT;
+	                statusOfScreen = LOADING;
+	          }
+		    }
+		    
+		    
+		    if (onScreen['fileType']=='tv'){
+		    	//Check TV support
+		    	if (TVSUPPORT) {
+		    		loadDuringAdvanceProtection = 'tv';
+		    		statusOfScreen = PLAY;
+		    	} else {
+		    		statusOfScreen = EMPTY;
+		    	}
+		    }
+      break;
+
+      case LOADING:
+            if (onScreen['fileType']=='video'){
+                //Set Videotime and watchdog here (Not in PLAY!)
+                videoTime = 0;
+                //Wait for it to fail playing. Should
+                watchdog = watchdog - 1;
+                if (watchdog <= 0) {
+                    $('#scrstatus').text('Video Failed to Load. Counter ' + watchdog);
+                    if (DEBUGMODE) $('#log').append('<br>Video Failed to Load ' + JSON.stringify(options[playlistposition]));
+                    errorFlag=true;
+                    errorDescription = 'Video Failed to Load';
+                    statusOfScreen = UNLOAD;
+                } else {
+                    $('#scrstatus').text('Video Loading. Counter ' + watchdog);
+                }
+            }
+            if (onScreen['fileType']=='image'){
+                //Wait for it to fail to load. $('#imageloadcheck').imageLoad() should trigger before this times out.
+                watchdog = watchdog - 1;
+                if (watchdog <= 0) {
+                    $('#scrstatus').text('Image Failed to Load. Counter ' + watchdog);
+                    if (DEBUGMODE) $('#log').append('<br>Image Failed to Load ' + JSON.stringify(options[playlistposition]));
+                    errorFlag=true;
+                    errorDescription = 'Image Failed to Load';
+                    statusOfScreen = FINISHED;
+                } else {
+                    $('#scrstatus').text('Image Loading. Counter ' + watchdog);
+                }
+            }
+		  break;
+		
+      case PLAY:
+		    //note: this triggers constantly while playing VIDEO. Don't really know why
+		    if (onScreen['fileType']=='video'){
+			    videoElement = document.getElementById('sigVideo');	
+             //Volume Control
+             videoElement.volume = VOLUME;
+			    if (typeof onScreen['volume'] !=='undefined'){
+				    if (onScreen['volume'] >= 0){
+					   videoElement.volume = onScreen['volume'];
+				    }
+			    }
+
+			    //Wait for it to finish playing
+			    if (videoElement.paused) {
+				    try {
+					    videoElement.play();
+					    $('#scrstatus').text('Video Play'); 
+					    //Allister Added this to show countdown
+					    statusOfScreen = PLAYING;
+				    }
+				    catch(err) {
+				      $('#scrstatus').text('Video Play Error. '+ err.name +' '+ onScreen['fileName']);
+				    }
+			    }
+		    } else {
+		    	//Rare Crash where callback occurs during advancePlaylist())
+		    	if (loadDuringAdvanceProtection == 'video'){
+                //console.log('Video crash:' + loadDuringAdvanceProtection);			    	
+			    	statusOfScreen = FORCEUNLOAD;
+		    	}
+		    }
+		    if (onScreen['fileType']=='image'){
+		    } else {
+		    	//Rare Crash where callback occurs during advancePlaylist())
+		    	if (loadDuringAdvanceProtection == 'image'){
+			    	//console.log('Image crash:' + loadDuringAdvanceProtection);		
+			    	statusOfScreen = FORCEUNLOAD;
+		    	}
+		    }
+		    if (onScreen['fileType']=='tv'){
+		    	 $('#tvcontainer').css('display','block');
+		    	 watchdog = TVWAIT;
+		    	 if (typeof onScreen['longWait'] !=='undefined'){
+				    watchdog = onScreen['longWait']*600;
+			    }
+				if (typeof onScreen['waitMinutes'] !=='undefined'){
+				    watchdog = onScreen['waitMinutes']*600;
+			    }
+		    	 if (typeof onScreen['wait'] !=='undefined'){
+				    watchdog = onScreen['wait']*10;
+			    }
+				 //Enable all Tracks
+				 for (var i = 0; i < tv.srcObject.getTracks().length; i++) {
+				    tv.srcObject.getTracks()[i].enabled=true;
+				 }
+			    statusOfScreen = PLAYING;
+		    } else {
+		    	//Rare Crash where callback occurs during advancePlaylist())
+		    	if (loadDuringAdvanceProtection == 'tv'){
+			    	//console.log('Image crash:' + loadDuringAdvanceProtection);		
+			    	statusOfScreen = FORCEUNLOAD;
+		    	}
+		    }
+		  break;
+		
+      case PLAYING:
+        //note: this triggers constantly while playing VIDEO as it should. But PLAY does also for some reason.
+		    if (onScreen['fileType']=='video'){
+			    //Wait for it to finish playing
+			    videoElement = document.getElementById('sigVideo');
+			    if (videoTime >= parseFloat(videoElement.currentTime)) {
+				    //Stuck. Tick down watchdog.
+				    $('#scrstatus').text('Video Stuck. ' + onScreen['fileName'] + " Playhead: " + videoElement.currentTime + " Videotime:" + videoTime ); 
+				    watchdog = watchdog - 1;
+				    if (watchdog <= 0) {
+					    statusOfScreen = FINISHED;
+				    }
+			    } else {
+				    //Playing normally. Reset Watchdog and smile :)
+				    $('#scrstatus').text('Video Playing:' + onScreen['fileName'] + " Volume:" + VOLUME + ". Duration:" + videoElement.duration + ". Playhead:" + videoElement.currentTime); 
+				    watchdog = MAXWAIT;
+				    videoTime = parseFloat(videoElement.currentTime);
+			    }
+		    }
+		    if (onScreen['fileType']=='image'){
+			    //Wait for it to finish showing
+			    watchdog = watchdog - 1;
+			    if (watchdog <= 0) {
+				    $('#scrstatus').text('Image Done ' + watchdog);
+				    //Should go FINISHED > UNLOAD > EMPTY (like videos do) but why bother for now?
+				    statusOfScreen = FINISHED;
+			    } else {
+				    $('#scrstatus').text('Image Showing:' + onScreen['fileName'] + ' Countdown ' + watchdog);
+			    }
+		    } else {
+		    	//Rare Crash where callback occurs during advancePlaylist())
+		    	if (loadDuringAdvanceProtection == 'image'){
+			    	statusOfScreen = FORCEUNLOAD;
+		    	}
+		    }
+		    if (onScreen['fileType']=='tv'){
+			    //Wait for it to finish showing
+			    watchdog = watchdog - 1;
+			    if (watchdog <= 0) {
+				    $('#scrstatus').text('TV Done ' + watchdog);
+				    //Should go FINISHED > EMPTY (like videos do) but why bother for now?
+				    statusOfScreen = FINISHED;
+			    } else {
+				    $('#scrstatus').text('TV Showing' + ' ' + ' Countdown ' + watchdog);
+			    }
+		    }
+
+      break;
+	  
+	  
+      case FINISHED:
+		    if (onScreen['fileType']=='video'){
+			    //Done playing. Takedown
+			    $('#scrstatus').text('Video Finished '+ onScreen['fileName']);
+			    //Set a wait time for unload to happen
+			    watchdog = 3;
+			    //reset videoTime.
+			    videoTime = 0;
+			    statusOfScreen = UNLOAD;
+			    videoElement = document.getElementById('sigVideo');
+			    videoElement.pause();
+			    videoElement.removeAttribute('src'); // empty source
+		    }
+		    if (onScreen['fileType']=='image'){
+			    //I skip  FINISHED for images but this should be here anyways
+			    statusOfScreen = UNLOAD;
+		    }
+		    if (onScreen['fileType']=='tv'){
+			    $('#scrstatus').text('TV Finished ');
+			    $('#tvcontainer').css('display','none');
+				  //Stop all tracks in The feed to ensure no sound leaks
+				  for (var i = 0; i < tv.srcObject.getTracks().length; i++) {
+				    tv.srcObject.getTracks()[i].enabled=false;
+				  } 			    
+			    
+			    statusOfScreen = UNLOAD;
+		    }
+		
+		    //LOGGING.... Special Check if we got here via an interrupt 
+		    if (interrupt){
+			    playlistposition = 0;
+			    interrupt=false;
+		    }
+		    
+		    //Clean exit
+		    loadDuringAdvanceProtection = ''; 
+	    break;
+	  
+	  
+      case UNLOAD:
+        if (onScreen['fileType']=='video'){
+            //Wait a little for the browser to notice that there's no video
+            watchdog = watchdog - 1;
+            if (watchdog <= 0) {
+                logPlayback();
+                statusOfScreen = EMPTY;
+            } else {
+                $('#scrstatus').text('Waiting for ' + onScreen['fileName'] +' unload. Counter ' + watchdog);
+            }
+        }
+        if (onScreen['fileType']=='image'){
+            logPlayback();
+            statusOfScreen = EMPTY;
+        }
+        if (onScreen['fileType']=='tv'){
+        	   logPlayback();
+            statusOfScreen = EMPTY;
+        }
+        if (onScreen['fileType']=='cls'){
+            //I skip  UNLOAD for cls but this should be here anyways
+            statusOfScreen = EMPTY;
+        }
+        if (onScreen['fileType']=='interrupt'){
+            //I skip  UNLOAD for interrupts but this should be here anyways
+            statusOfScreen = EMPTY;
+        }
+        if (onScreen['fileType']=='config'){
+            //I skip  UNLOAD for configs but this should be here anyways
+            statusOfScreen = EMPTY;
+        }
+      break;
+      
+      case FORCEUNLOAD:
+			    //alert("crash!!");
+			    //Rare situation where video or image loaded while the system was advancing so the onscreen object doesn't reflect reality. Stop absolutely everything
+			    $('#scrstatus').text('Force Unload All');
+			    
+			    //Force Takedown Video
+			    videoTime = 0;
+			    videoElement = document.getElementById('sigVideo');
+			    videoElement.pause();
+			    videoElement.removeAttribute('src'); // empty source
+             $('#videocontainer').css('display','none');
+	
+	         //Force Takedown Image
+	         $('#imagecontainer').css('display','none');	
+	         
+	         //Force Takedown TV
+	         $('#tvcontainer').css('display','none');
+				for (var i = 0; i < tv.srcObject.getTracks().length; i++) {
+				    tv.srcObject.getTracks()[i].enabled=false;
+				} 		
+			    
+		    //Clear the flag
+		    loadDuringAdvanceProtection = '';
+		    
+		    //Skip to next item after trying to clean up the current one.
+		    statusOfScreen = EMPTY;
+
+	    break;      
+      
+	}
+
+}
+
+
+function renderVideo(theVideo){
+	$('#videocontainer').css('display','block');
+	$('#videocontainer').css('width',screenWidthToUse + 'px');
+	$('#videocontainer').css('height',screenHeightToUse + 'px');
+	$('#sigVideo').css('width',screenWidthToUse + 'px');
+	$('#sigVideo').css('height',screenHeightToUse + 'px');
+	videoElement = document.getElementById('sigVideo');
+	videoElement.setAttribute('src',theVideo);
+}
+
+function scaleToFill(videoTag) {
+    var $video = $(videoTag);
+	$video.css('-webkit-transform','scaleY(1)');
+	$video.css('-webkit-transform','scaleX(1)');
+	if (typeof onScreen['stretch'] !=='undefined'){
+		if (onScreen['stretch']=='stretch'){
+			var videoRatio = videoTag.videoWidth / videoTag.videoHeight;
+			var tagRatio = $video.width() / $video.height();
+			if (videoRatio < tagRatio) {
+				$video.css('-webkit-transform','scaleX(' + tagRatio / videoRatio  + ')');
+			} else if (tagRatio < videoRatio) {
+				$video.css('-webkit-transform','scaleY(' + videoRatio / tagRatio  + ')');
+			}
+		}
+	}
+}
+
+function advancePlaylist(){
+ 
+ 	//step forward 
+	playlistposition = playlistposition + 1;
+	//Check for overflow
+	if (playlistposition >= options.length){
+		playlistposition = 0;
+	}	
+	
+	   
+    //Hide all and stop all
+	$('#videocontainer').css('display','none');
+	$('#imagecontainer').css('display','none');	
+	if (TVSUPPORT) {
+		$('#tvcontainer').css('display','none');
+   }		
+
+	
+    //Display full for debug
+    $('#plsstatus').text('Playlist item ' +  playlistposition + ': ' + JSON.stringify(options[playlistposition]));
+    
+	//Check for valid mediatype (Probably Completely unnecessary, Just default statusOfScreen = EMPTY; and this should fail safe)
+	if (typeof options[playlistposition]['fileType'] !=='undefined'){
+		if ((options[playlistposition]['fileType'] !='tv')&&(options[playlistposition]['fileType'] !='video')&&(options[playlistposition]['fileType'] !='image')&&(options[playlistposition]['fileType'] !='config')&&(options[playlistposition]['fileType'] !='interrupt')&&(options[playlistposition]['fileType'] !='cls')){
+			//unrecognized filetype! Set this to load next playlist item on next heartbeat
+			statusOfScreen = EMPTY;
+          if (DEBUGMODE) $('#log').append('<br>Unrecognized Filetype in ' + JSON.stringify(options[playlistposition]));
+		}
+	} else {
+		//No Filetype! Set this to load next playlist item on next heartbeat
+		statusOfScreen = EMPTY;
+        if (DEBUGMODE) $('#log').append('<br>Filetype not found in ' + JSON.stringify(options[playlistposition]));
+    }
+    
+    //startDate Checking filter
+    if (typeof options[playlistposition]['startDate'] !=='undefined'){
+        parts = options[playlistposition]['startDate'].trim().split('-');
+        if (parts.length == 3) {
+            mydate = new Date(parts[0], parts[1] - 1, parts[2], 0,0,0);
+            difference = new Date() - mydate;
+            if (difference < 0) {
+                //Date is in the future. Skip rendering this item
+                statusOfScreen = EMPTY;
+                if (DEBUGMODE) $('#log').append('<br>Future Item Skipped:  ' + JSON.stringify(options[playlistposition]));
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid Start Date found in  ' + JSON.stringify(options[playlistposition]));
+            if (DEBUGMODE) $('#log').append('<br>Date Format should be YYYY-MM-DD');
+        }
+    }
+
+    //endDate Checking filter
+    if (typeof options[playlistposition]['endDate'] !=='undefined'){
+        parts = options[playlistposition]['endDate'].trim().split('-');
+        if (parts.length == 3) {
+            mydate = new Date(parts[0], parts[1] - 1, parts[2], 23,59,59);
+            difference = new Date() - mydate;
+            if (difference > 0) {
+                //Date is in the past. Skip rendering this item
+                statusOfScreen = EMPTY;
+                if (DEBUGMODE) $('#log').append('<br>Past Item Skipped:  ' + JSON.stringify(options[playlistposition]));
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid End Date found in  ' + JSON.stringify(options[playlistposition]));
+            if (DEBUGMODE) $('#log').append('<br>Date Format should be YYYY-MM-DD');
+        }
+    }
+ 
+ 
+    //startTime Checking filter
+    if (typeof options[playlistposition]['startTime'] !=='undefined'){
+        parts = options[playlistposition]['startTime'].trim().split(':');
+        if (parts.length == 2) {
+            //Add Up the Minutes in startTime
+            mytime = parseInt(parts[0]) * 60;
+            mytime = mytime + parseInt(parts[1]) ;
+            //Add Up Minutes Since the beginning of the day
+            thetime = new Date().getHours() * 60;
+            thetime = thetime + new Date().getMinutes();
+            if (mytime > thetime) {
+                //Time is in the future. Skip rendering this item
+                statusOfScreen = EMPTY;
+                if (DEBUGMODE) $('#log').append('<br>Early Item Skipped:  ' + JSON.stringify(options[playlistposition]));
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid Start Time found in  ' + JSON.stringify(options[playlistposition]));
+            if (DEBUGMODE) $('#log').append('<br>Time Format should be HH:MM');
+        }
+    } 
+ 
+    //endTime Checking filter
+    if (typeof options[playlistposition]['endTime'] !=='undefined'){
+        parts = options[playlistposition]['endTime'].trim().split(':');
+        if (parts.length == 2) {
+            //Add Up the Minutes in startTime
+            mytime = parseInt(parts[0]) * 60;
+            mytime = mytime + parseInt(parts[1]) ;
+            //Add Up Minutes Since the beginning of the day
+            thetime = new Date().getHours() * 60;
+            thetime = thetime + new Date().getMinutes();
+            if (mytime <= thetime) {
+                //Time is in the past. Skip rendering this item
+                statusOfScreen = EMPTY;
+                if (DEBUGMODE) $('#log').append('<br>Late Item Skipped:  ' + JSON.stringify(options[playlistposition]));
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid End Time found in  ' + JSON.stringify(options[playlistposition]));
+            if (DEBUGMODE) $('#log').append('<br>Time Format should be HH:MM');
+        }
+    }  
+
+
+
+
+
+
+    //LASTLY CHECK TIME ON AND TIME OFF from configs
+    if (TIMEON !=''){
+        parts = TIMEON.trim().split(':');
+        if (parts.length == 2) {
+            //Add Up the Minutes in startTime
+            mytime = parseInt(parts[0]) * 60;
+            mytime = mytime + parseInt(parts[1]) ;
+            //Add Up Minutes Since the beginning of the day
+            thetime = new Date().getHours() * 60;
+            thetime = thetime + new Date().getMinutes();
+            if (mytime > thetime) {
+                //Time is in the future. Skip rendering this item
+                statusOfScreen = EMPTY;
+                //Clear Screen Log. None of it is valid
+                $('#log').html('Screen Off until ' +TIMEON );
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid TIMEON  ' + TIMEON );
+            if (DEBUGMODE) $('#log').append('<br>Time Format should be HH:MM');
+        }
+    } 
+    if (TIMEOFF !=''){
+        parts = TIMEOFF.trim().split(':');
+        if (parts.length == 2) {
+            //Add Up the Minutes in startTime
+            mytime = parseInt(parts[0]) * 60;
+            mytime = mytime + parseInt(parts[1]) ;
+            //Add Up Minutes Since the beginning of the day
+            thetime = new Date().getHours() * 60;
+            thetime = thetime + new Date().getMinutes();
+            if (mytime <= thetime) {
+                //Time is in the past. Skip rendering this item
+                statusOfScreen = EMPTY;
+                //Clear Screen Log. None of it is valid
+                $('#log').html('Screen Off since' + TIMEOFF);
+            }
+        } else {
+            if (DEBUGMODE) $('#log').append('<br>Invalid TIMEON  ' + TIMEOFF );
+            if (DEBUGMODE) $('#log').append('<br>Time Format should be HH:MM');
+        }
+    }  
+   
+	return options[playlistposition];
+
+}
+        </script>
+    </body>
+</html>

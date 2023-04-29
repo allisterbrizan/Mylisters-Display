@@ -1,0 +1,8 @@
+[
+{"fileType":"cls"},
+{"fileType":"config", "volume":0},
+
+{"fileType":"video", "fileName":"bigbuckbunny.mp4", "volume":0, "random":["bigbuckbunny.mp4","myVideo.mp4","myVideov.mp4"]}, 
+
+{"fileType":"cls"}
+]

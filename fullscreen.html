@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http://mylisters.com; connect-src *; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+        <title>Easy Fullscreen Container for index.html</title>
+
+        <style>
+			body {
+				padding:0px;
+				margin:0px;
+				overflow:hidden;
+			}
+        </style>
+    </head>
+    <body>
+
+<H1><a href="#" onclick="openFullscreen();">Click to Load index.html in a fullscreen iFrame</a></H1>
+
+
+
+<script>
+/* Get the documentElement (<html>) to display the page in fullscreen */
+var elem = document.documentElement;
+
+/* View in fullscreen */
+function openFullscreen() {
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+  } else if (elem.webkitRequestFullscreen) { /* Safari */
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) { /* IE11 */
+    elem.msRequestFullscreen();
+  }
+  elem.innerHTML = '<iframe style="position:absolute; left:0; top:0; background-color: #F00; width:100vw; height:100vh; border:0;" src="index.html" title="fleft"></iframe>';
+}
+</script>
+    </body>
+</html>

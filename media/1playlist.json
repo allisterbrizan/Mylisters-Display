@@ -1,0 +1,16 @@
+[
+{"fileType":"cls"},
+
+
+{"fileType":"video", "fileName":"myVideo.mp4"},
+
+{"fileType":"image", "fileName":"../image.jpg"},
+
+{"fileType":"tv"},
+
+{"fileType":"image", "fileName":"freepik.com-morning.jpg", "endTime":"12:00"},
+{"fileType":"image", "fileName":"freepik.com-afternoon.jpg", "startTime":"12:00", "endTime":"18:00" },
+{"fileType":"image", "fileName":"freepik.com-night.jpg", "startTime":"18:00"},
+
+{"fileType":"cls"}
+]

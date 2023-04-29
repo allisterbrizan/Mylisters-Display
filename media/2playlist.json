@@ -1,0 +1,11 @@
+[
+{"fileType":"cls"},
+
+{"fileType":"config", "debug":true, "volume":1},
+
+{"fileType":"video", "fileName":"myVideo.mp4"},
+{"fileType":"tv", "waitMinutes":5},
+
+
+{"fileType":"cls"}
+]

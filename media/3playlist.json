@@ -1,0 +1,8 @@
+[
+{"fileType":"cls"},
+{"fileType":"config", "volume":0},
+
+{"fileType":"image", "fileName":"myImagev.jpg", "wait":2, "random":["freepik.com-night.jpg", "freepik.com-morning.jpg", "freepik.com-afternoon.jpg", "myImagev.jpg","plant.jpg","stream.jpg","beach.jpg","camille.jpg"]},
+
+{"fileType":"cls"}
+]
